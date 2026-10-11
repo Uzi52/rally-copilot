@@ -1,1 +1,88 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#10151e"><link rel="manifest" href="manifest.webmanifest"><title>Rally Copilot</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></head><body><div id="map"></div><header><strong>🏁 RALLY COPILOT</strong><span id="status">GPS inactivo</span></header><section class="panel"><div class="row"><div><small>VELOCIDAD</small><h1><span id="speed">--</span><em>km/h</em></h1></div><div><small>PRÓXIMA CURVA</small><h2 id="call">Esperando ruta</h2><div id="distance">—</div></div></div><div class="actions"><button id="start">▶ Iniciar GPS</button><button id="route">🛣️ Preparar ruta</button><button id="stop">■ Detener</button></div><p id="hint">Elegí «Preparar ruta» y tocá el mapa para marcar un destino. La app buscará un recorrido y estimará las curvas.</p><details><summary>Configuración</summary><label>Anticipación <select id="lead"><option value="100">100 m</option><option value="200" selected>200 m</option><option value="300">300 m</option></select></label><label><input id="voice" type="checkbox" checked> Avisos por voz</label></details><p class="warning">⚠️ Prototipo experimental. Las notas son estimaciones geométricas, no indican velocidad segura. Respetá la señalización y no uses la pantalla mientras conducís.</p></section><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="Rally Copilot: rutas GPS y avisos experimentales de curvas con un garaje de autos 2D.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoTsT5lG/SSctk=" crossorigin="">
+  <link rel="stylesheet" href="./style.css?v=2.1">
+  <title>Rally Copilot — Garaje 2D</title>
+</head>
+<body>
+  <div id="map" aria-label="Mapa de navegación"></div>
+  <div class="shade" aria-hidden="true"></div>
+  <main class="overlay">
+    <header class="topbar">
+      <div class="brand"><div class="brand-icon">🏁</div><div><strong>RALLY COPILOT</strong><span>EDICIÓN 2D</span></div></div>
+      <div class="topright"><span class="live-dot" id="liveDot"></span><span id="status" role="status">GPS inactivo</span></div>
+    </header>
+
+    <div class="search-area" id="searchArea">
+      <form id="searchForm" autocomplete="off">
+        <label class="sr-only" for="searchInput">Buscar destino</label>
+        <span aria-hidden="true">⌕</span>
+        <input id="searchInput" type="search" placeholder="¿A dónde vamos? Ej: Tafí del Valle" minlength="3" maxlength="120" enterkeyhint="search" autocomplete="off">
+        <button type="submit" id="searchBtn" aria-label="Buscar destino">Buscar</button>
+      </form>
+      <div class="search-tools">
+        <button type="button" id="pickMap" class="text-button">📍 Elegir en el mapa</button>
+        <span id="searchHelp">Buscá una ciudad, calle o lugar.</span>
+      </div>
+      <div id="searchResults" class="results" hidden aria-label="Resultados de búsqueda"></div>
+    </div>
+
+    <div class="nav-banner" id="navBanner" hidden>
+      <div class="nav-symbol" id="navSymbol">↪</div>
+      <div class="nav-text"><small>PRÓXIMA CURVA · ESTIMADA</small><strong id="navCall">Esperando ruta</strong><span id="navDistance">—</span></div>
+    </div>
+
+    <div class="map-controls">
+      <button type="button" id="recenter" aria-label="Centrar en mi ubicación" title="Centrar en mi ubicación">◎</button>
+      <button type="button" id="openGarage" aria-label="Abrir garaje" title="Elegir vehículo">🚘</button>
+    </div>
+
+    <section class="dashboard" aria-label="Panel de navegación">
+      <div class="data-row">
+        <div class="speed-col"><small>VELOCIDAD</small><div class="speed"><strong id="speed">--</strong><span>km/h</span></div></div>
+        <div class="curve-col"><small id="curveLabel">PRÓXIMA CURVA</small><strong id="call">Sin ruta preparada</strong><span id="distance">Buscá un destino para empezar</span></div>
+        <button type="button" class="selected-car" id="selectedCarBtn" aria-label="Cambiar vehículo"><span id="miniCar" aria-hidden="true"></span><span id="miniCarLabel">Lancer</span></button>
+      </div>
+      <div class="destination-info" id="destinationInfo" hidden>
+        <div><small>DESTINO</small><strong id="destinationName">—</strong></div>
+        <div class="route-metrics"><span id="routeKm">— km</span><span id="routeTime">— min</span></div>
+      </div>
+      <div class="buttons">
+        <button type="button" id="gpsBtn" class="btn btn-neutral">◎ Activar GPS</button>
+        <button type="button" id="navigateBtn" class="btn btn-primary" hidden>▶ Iniciar ruta</button>
+        <button type="button" id="stopBtn" class="btn btn-neutral" hidden>■ Detener</button>
+      </div>
+      <p id="hint">Activá el GPS, buscá un destino o elegilo tocando el mapa.</p>
+      <details id="settingsDetails"><summary>⚙️ Configuración del copiloto</summary>
+        <div class="settings-grid">
+          <label>Anticipación de voz<select id="lead"><option value="100">100 metros</option><option value="200">200 metros</option><option value="300">300 metros</option><option value="500">500 metros</option></select></label>
+          <label>Zoom de navegación<select id="navZoom"><option value="15">Lejano</option><option value="16" selected>Normal</option><option value="17">Cercano</option></select></label>
+        </div>
+        <label class="checkbox"><input id="voice" type="checkbox" checked> Avisos de curvas por voz</label>
+        <button type="button" id="testVoice" class="text-button">🔊 Probar voz</button>
+      </details>
+      <p class="disclaimer">⚠️ Notas automáticas experimentales. No describen la seguridad ni velocidad adecuada de una curva. Respetá señales y visibilidad; no manipules el teléfono mientras conducís.</p>
+    </section>
+  </main>
+
+  <dialog id="garage" class="garage">
+    <div class="garage-head"><div><small>PERSONALIZACIÓN</small><h2>🚘 Mi garaje</h2><p>Elegí un auto 2D para mostrar en el mapa.</p></div><button type="button" id="closeGarage" aria-label="Cerrar garaje">✕</button></div>
+    <div class="garage-grid" id="garageGrid" role="group" aria-label="Modelos de autos"></div>
+    <div class="paint-section"><strong>Color de carrocería</strong><div class="colors" id="colors" role="group" aria-label="Colores de carrocería"></div></div>
+    <p class="garage-note">Ilustraciones vectoriales originales y estilizadas, no representaciones oficiales exactas.</p>
+    <button type="button" class="btn btn-primary garage-save" id="saveGarage">Guardar vehículo</button>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="./cars.js?v=2.1"></script>
+  <script src="./app.js?v=2.1"></script>
+</body>
+</html>
