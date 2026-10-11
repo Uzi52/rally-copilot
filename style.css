@@ -63,3 +63,9 @@ body.navigating .search-area{display:none}body.navigating .dashboard #hint{displ
 @media(min-width:800px){.topbar{left:20px;right:20px}.dashboard{width:480px;left:20px;right:auto;max-height:65vh}.search-area{left:20px;right:auto;width:min(570px,calc(100% - 40px));margin:0}.nav-banner{left:20px;right:auto;width:480px;margin:0}.map-controls{right:20px}.garage{border-radius:20px;margin:auto;inset:0;max-height:85%;padding-bottom:20px}}
 @media(max-width:390px){.brand strong{font-size:12px}.topbar{padding:8px}.data-row{gap:6px;grid-template-columns:70px minmax(0,1fr) 59px}.speed strong{font-size:33px}.curve-col strong{font-size:15px}.selected-car{min-height:76px}.selected-car svg{width:31px;height:43px}.route-metrics{gap:5px;font-size:11px}.dashboard{padding:12px 10px 9px}.search-tools span{display:none}.nav-text strong{font-size:20px}}
 @media(prefers-reduced-motion:reduce){.car-rotator{transition:none}}
+
+/* Corrección Leaflet: mosaicos desalineados en Safari/Chrome móvil. */
+#map .leaflet-container img, #map img.leaflet-tile { max-width: none !important; max-height: none !important; }
+#map .leaflet-tile { width: 256px !important; height: 256px !important; }
+#map .leaflet-pane, #map .leaflet-tile, #map .leaflet-marker-icon, #map .leaflet-marker-shadow { position: absolute; }
+#map .leaflet-tile-container { position: absolute; left: 0; top: 0; }
